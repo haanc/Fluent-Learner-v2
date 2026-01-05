@@ -1,0 +1,132 @@
+.interactive-word {
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 0;
+    /* Remove padding to close gaps */
+    transition: background-color 0.2s;
+}
+
+/* Custom Selection Highlight */
+.interactive-word::selection {
+    background-color: #6366f1;
+    /* Indigo-500 */
+    color: white;
+}
+
+.interactive-word:hover {
+    background-color: rgba(99, 102, 241, 0.2);
+    /* Soft Indigo */
+    color: #818cf8;
+}
+
+.PopoverContent {
+    z-index: 1000;
+    width: 300px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    border: 1px solid #333;
+    box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35), 0 10px 20px -15px rgba(0, 0, 0, 0.2);
+    animation-duration: 400ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: 'Inter', sans-serif;
+}
+
+.PopoverArrow {
+    fill: #1a1a1a;
+}
+
+.popover-card {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 4px;
+}
+
+.save-word-btn {
+    background: transparent;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.save-word-btn:hover {
+    background: #f0f0f0;
+    transform: scale(1.1);
+}
+
+.save-word-btn.saved {
+    background: #e6fffa;
+    border-color: #38b2ac;
+    cursor: default;
+}
+
+.word-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.word-pronunciation {
+    font-family: monospace;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.popover-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.definition-row,
+.translation-row {
+    display: flex;
+    gap: 6px;
+}
+
+.label {
+    font-weight: 600;
+    color: #888;
+    min-width: 70px;
+}
+
+.value {
+    color: #ddd;
+    line-height: 1.4;
+}
+
+.success-text {
+    color: #4ade80;
+    /* Tailwind green-400 */
+    font-weight: 600;
+}
+
+.italic {
+    font-style: italic;
+    color: #aaa;
+}
+
+.popover-loading {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+.popover-error {
+    color: #ef4444;
+    text-align: center;
+}

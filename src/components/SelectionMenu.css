@@ -1,0 +1,71 @@
+.SelectionMenuContent {
+    z-index: 2000;
+    /* Higher than WordPopover */
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    border: 1px solid #646cff;
+    /* distinct border color */
+    box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35), 0 10px 20px -15px rgba(0, 0, 0, 0.2);
+    animation-duration: 400ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: 'Inter', sans-serif;
+    min-width: 200px;
+    max-width: 320px;
+}
+
+.SelectionMenuArrow {
+    fill: #1a1a1a;
+    stroke: #646cff;
+    stroke-width: 1px;
+}
+
+.selection-card {
+    padding: 12px;
+}
+
+.lookup-btn {
+    width: 100%;
+    background-color: #646cff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lookup-btn:hover {
+    background-color: #535bf2;
+}
+
+.menu-loading,
+.menu-error {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    padding: 4px;
+}
+
+.menu-error {
+    color: #ef4444;
+}
+
+.menu-result {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.menu-header {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+}
