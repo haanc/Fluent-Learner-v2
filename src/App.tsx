@@ -15,7 +15,7 @@ import { MediaSource } from './services/api'
 import LibraryGrid from './components/LibraryGrid'
 
 
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, PanelImperativeHandle } from "react-resizable-panels";
 import { AuthModal } from './components/Auth/AuthModal'
 import { getUser, signOut, supabase } from './services/supabase'
 import { User } from '@supabase/supabase-js'
@@ -69,10 +69,14 @@ function App() {
   const [vocabCount, setVocabCount] = useState<number>(0); // Current video vocab count
   const [reviewCount, setReviewCount] = useState<number>(0); // Words due for review
   const videoRef = useRef<HTMLVideoElement>(null)
-  const sidebarPanelRef = useRef<ImperativePanelHandle>(null)
+  const sidebarPanelRef = useRef<PanelImperativeHandle>(null)
 
   // Layout mode: 'compact' when playing, 'expanded' when paused/interacting
   const [layoutMode, setLayoutMode] = useState<'compact' | 'expanded'>('expanded');
+
+  // Sidebar width for resizable layout
+  const [sidebarWidth, setSidebarWidth] = useState<number>(320);
+  const isResizing = useRef<boolean>(false);
 
   // Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -328,8 +332,26 @@ function App() {
       setMessage(`Resolving stream URL for: ${media.title}...`);
       setCurrentMedia(media);
 
+      // Check if it's a Bilibili video - needs proxy due to Referer requirements
+      const isBilibili = media.source_url.includes('bilibili.com');
+
+      if (isBilibili) {
+        // Use proxy endpoint for Bilibili
+        // Note: First-time playback will download the video (may take a few minutes)
+        setMessage(`⏳ Preparing Bilibili video (first time may take 1-2 minutes)...`);
+        const proxyUrl = `http://localhost:8000/media/proxy?url=${encodeURIComponent(media.source_url)}`;
+        setVideoPath(proxyUrl);
+        return;
+      }
+
+      // For YouTube and others, get direct stream URL
       fetch(`http://localhost:8000/media/stream-url?url=${encodeURIComponent(media.source_url)}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`Server error: ${res.status}`);
+          }
+          return res.json();
+        })
         .then(data => {
           if (data.stream_url) {
             setVideoPath(data.stream_url);
@@ -380,10 +402,13 @@ function App() {
   }
 
   const isValidUrl = (url: string) => {
+    const trimmedUrl = url.trim();
     // Basic pattern matching for YouTube and Bilibili
-    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]{11}/;
-    const bilibiliRegex = /^(https?:\/\/)?(www\.)?bilibili\.com\/video\/BV[\w]+/;
-    return youtubeRegex.test(url) || bilibiliRegex.test(url);
+    // YouTube: youtube.com/watch?v=VIDEO_ID or youtu.be/VIDEO_ID
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|m\.youtube\.com\/watch\?v=)[\w-]+/i;
+    // Bilibili: bilibili.com/video/BV... (with optional query params)
+    const bilibiliRegex = /^(https?:\/\/)?(www\.)?bilibili\.com\/video\/BV[\w]+/i;
+    return youtubeRegex.test(trimmedUrl) || bilibiliRegex.test(trimmedUrl);
   };
 
   const handleImportUrl = async (directUrl?: string) => {
@@ -419,6 +444,38 @@ function App() {
       videoRef.current.play()
     }
   }
+
+  // Resize handle mouse events
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const newWidth = window.innerWidth - e.clientX;
+      setSidebarWidth(Math.max(250, Math.min(600, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const handleDeleteVideo = async (mediaId: string) => {
     try {
@@ -523,7 +580,7 @@ function App() {
                 onChange={(e) => setUrlInput(e.target.value)}
                 disabled={isImporting}
               />
-              <button onClick={handleImportUrl} disabled={isImporting || !urlInput}>
+              <button onClick={() => handleImportUrl()} disabled={isImporting || !urlInput}>
                 {isImporting ? '⚡ Importing...' : '📥 Import'}
               </button>
             </div>
@@ -568,93 +625,88 @@ function App() {
         <p className="status-msg-bar">{message}</p>
 
         {/* Resizable Layout Area */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <PanelGroup orientation="horizontal" style={{ width: '100%', height: '100%' }}>
-            {/* Main Player / Library Area */}
-            <Panel defaultSize={75} minSize={30}>
-              <div className="player-section" style={{ height: '100%', overflowY: 'auto' }}>
+        <div className="main-layout">
+          {/* Main Player / Library Area */}
+          <div className="main-panel">
+            {view === 'player' && videoPath ? (
+              <div className="player-section">
                 <div className="player-wrapper">
-                  {view === 'player' && videoPath ? (
-                    <>
-                      <video
-                        key={videoPath} // Force remount on video change
-                        ref={videoRef}
-                        src={videoPath.includes('.m3u8') || videoPath.includes('manifest') ? undefined : videoPath}
-                        controls
-                        autoPlay // Auto-play when loaded
-                        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                        onPlay={() => setIsPaused(false)}
-                        onPause={() => setIsPaused(true)}
-                        onError={(e) => {
-                          const err = e.currentTarget.error;
-                          console.error('Video Error:', err);
-                          setMessage(`Video Error: ${err?.message || 'Code ' + err?.code}.`);
-                        }}
-                        className="main-video"
-                      />
+                  <video
+                    key={videoPath} // Force remount on video change
+                    ref={videoRef}
+                    src={videoPath.includes('.m3u8') || videoPath.includes('manifest') ? undefined : videoPath}
+                    controls
+                    autoPlay // Auto-play when loaded
+                    onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                    onPlay={() => setIsPaused(false)}
+                    onPause={() => setIsPaused(true)}
+                    onError={(e) => {
+                      const err = e.currentTarget.error;
+                      console.error('Video Error:', err);
+                      setMessage(`Video Error: ${err?.message || 'Code ' + err?.code}.`);
+                    }}
+                    className="main-video"
+                  />
 
-                      <SubtitleOverlay
-                        text={activeSegment?.text || null}
-                        translation={showTranslation ? activeSegment?.translation : undefined}
-                      />
+                  <SubtitleOverlay
+                    text={activeSegment?.text || null}
+                    translation={showTranslation ? activeSegment?.translation : undefined}
+                  />
 
-                      {/* Learning Panel - appears when video is paused */}
-                      <LearningPanel
-                        isVisible={isPaused && view === 'player'}
-                        currentSentence={activeSegment?.text}
-                        onExplain={handleExplainSentence}
-                        onWordByWord={handleWordByWord}
-                        onShowVocab={handleShowVocab}
-                        onQuickReview={handleQuickReview}
-                        vocabCount={vocabCount}
-                        reviewCount={reviewCount}
-                        isTranslating={isTranslating}
-                      />
-                    </>
-                  ) : view === 'notebook' ? (
-                    <NotebookView />
-                  ) : (
-                    <LibraryGrid
-                      onSelectVideo={handleSelectLibraryVideo}
-                      onDeleteVideo={handleDeleteVideo}
-                      onImportUrl={handleImportUrl}
-                      onSelectLocal={handleSelectVideo}
-                      isImporting={isImporting}
-                    />
-                  )}
+                  {/* Learning Panel - appears when video is paused */}
+                  <LearningPanel
+                    isVisible={isPaused && view === 'player'}
+                    currentSentence={activeSegment?.text}
+                    onExplain={handleExplainSentence}
+                    onWordByWord={handleWordByWord}
+                    onShowVocab={handleShowVocab}
+                    onQuickReview={handleQuickReview}
+                    vocabCount={vocabCount}
+                    reviewCount={reviewCount}
+                    isTranslating={isTranslating}
+                  />
                 </div>
               </div>
-            </Panel>
+            ) : view === 'notebook' ? (
+              <NotebookView />
+            ) : (
+              <LibraryGrid
+                onSelectVideo={handleSelectLibraryVideo}
+                onDeleteVideo={handleDeleteVideo}
+                onImportUrl={handleImportUrl}
+                onSelectLocal={handleSelectVideo}
+                isImporting={isImporting}
+              />
+            )}
+          </div>
 
-            <PanelResizeHandle className="ResizeHandleOuter">
-              <div className="ResizeHandleInner" />
-            </PanelResizeHandle>
+          {/* Resize Handle */}
+          <div
+            className="resize-handle"
+            onMouseDown={handleResizeMouseDown}
+          ></div>
 
-            {/* Sidebar Area */}
-            <Panel
-              ref={sidebarPanelRef}
-              defaultSize={25}
-              minSize={15}
-              maxSize={50}
-              className={`sidebar-panel ${layoutMode}`}
-            >
-              <ErrorBoundary>
-                <SubtitleSidebar
-                  segments={segments || []}
-                  currentTime={currentTime}
-                  onSeek={handleSeek}
-                  targetLanguage={targetLanguage}
-                  onTargetLanguageChange={handleTargetLanguageChange}
-                  showTranslation={showTranslation}
-                  onShowTranslationChange={handleShowTranslationChange}
-                  isTranslating={isTranslating}
-                  mediaId={currentMedia?.id}
-                  sourceLanguage={currentMedia?.language}
-                  isCompact={layoutMode === 'compact'}
-                />
-              </ErrorBoundary>
-            </Panel>
-          </PanelGroup>
+          {/* Sidebar Area */}
+          <div
+            className={`sidebar-panel ${layoutMode}`}
+            style={{ width: sidebarWidth }}
+          >
+            <ErrorBoundary>
+              <SubtitleSidebar
+                segments={segments || []}
+                currentTime={currentTime}
+                onSeek={handleSeek}
+                targetLanguage={targetLanguage}
+                onTargetLanguageChange={handleTargetLanguageChange}
+                showTranslation={showTranslation}
+                onShowTranslationChange={handleShowTranslationChange}
+                isTranslating={isTranslating}
+                mediaId={currentMedia?.id}
+                sourceLanguage={currentMedia?.language}
+                isCompact={layoutMode === 'compact'}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
 
         <footer>

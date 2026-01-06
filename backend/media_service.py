@@ -14,9 +14,8 @@ class MediaService:
             'no_warnings': False,
             # Strictly prefer progressive HTTP/HTTPS mp4. Exclude manifests.
             # 22 = 720p mp4, 18 = 360p mp4 (standard youtube progressive)
-            'format': 'best[protocol^=http][protocol!*=m3u8][protocol!*=dash][ext=mp4]/best[ext=mp4]', 
+            'format': 'best[protocol^=http][protocol!*=m3u8][protocol!*=dash][ext=mp4]/best[ext=mp4]',
             'nocheckcertificate': True,
-            'javascript_runtime': 'node',
             'socket_timeout': 15, # Prevent hanging
             'retries': 10, # Retry on network error
             'fragment_retries': 10, # Retry on fragment error
@@ -25,10 +24,10 @@ class MediaService:
             try:
                 info = ydl.extract_info(url, download=False)
                 stream_url = info.get('url')
-                
+
                 print(f"DEBUG: Selected Format ID: {info.get('format_id')}")
                 print(f"DEBUG: Selected Protocol: {info.get('protocol')}")
-                print(f"DEBUG: Final Stream URL: {stream_url[:100]}...")
+                print(f"DEBUG: Final Stream URL: {stream_url[:100] if stream_url else 'None'}...")
                 if not stream_url and 'formats' in info:
                     # Look for the best mp4 format
                     mp4_formats = [f for f in info['formats'] if f.get('ext') == 'mp4' and f.get('url')]

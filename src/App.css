@@ -241,27 +241,33 @@ button:hover {
 
 /* Player Section */
 .player-section {
-  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 8px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .player-wrapper {
   position: relative;
   width: 100%;
-  max-width: 1000px;
-  aspect-ratio: 16 / 9;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .main-video {
   width: 100%;
   height: 100%;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .ai-overlay {
@@ -300,29 +306,67 @@ footer {
 
 /* Split Pane Resizer */
 .ResizeHandleOuter {
-  flex: 0 0 1.5em;
+  width: 8px;
   position: relative;
   outline: none;
-  --background-color: transparent;
-}
-
-.ResizeHandleInner {
-  position: absolute;
-  top: 0.25em;
-  bottom: 0.25em;
-  left: 0.25em;
-  right: 0.25em;
-  border-radius: 0.25em;
-  background-color: var(--background-color);
-  transition: background-color 0.2s linear;
+  background: transparent;
+  cursor: col-resize;
 }
 
 .ResizeHandleOuter:hover {
-  --background-color: #333;
-  cursor: col-resize;
+  background: rgba(99, 102, 241, 0.3);
+}
+
+.ResizeHandleInner {
+  display: none;
 }
 
 .ResizeHandleOuter[data-resize-handle-active] {
-  --background-color: var(--primary);
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Main Layout - Flexbox based */
+.main-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  height: 100%;
+}
+
+.main-panel {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.resize-handle {
+  width: 6px;
+  background: transparent;
   cursor: col-resize;
+  flex-shrink: 0;
+}
+
+.resize-handle:hover {
+  background: rgba(99, 102, 241, 0.3);
+}
+
+/* Sidebar Panel */
+.sidebar-panel {
+  width: 320px;
+  min-width: 280px;
+  max-width: 500px;
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* Ensure Panel children don't overflow */
+[data-panel] {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }

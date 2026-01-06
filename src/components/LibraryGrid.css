@@ -1,8 +1,11 @@
 .library-container {
     padding: 2rem;
     width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: auto;
 }
 
 .library-header {
