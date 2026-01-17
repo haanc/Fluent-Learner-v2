@@ -11,6 +11,7 @@ import QuickReview from './components/QuickReview'
 import VideoWordList from './components/VideoWordList'
 import TitleBar from './components/TitleBar'
 import LLMSetupReminder from './components/LLMSetupReminder'
+import { DepsSetup } from './components/DepsSetup'
 import { LLMSettingsModal } from './components/Settings/LLMSettingsModal'
 import { api } from './services/api'
 import { llmConfigStorage } from './services/llmConfigStorage'
@@ -92,6 +93,7 @@ function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLLMSettingsOpen, setIsLLMSettingsOpen] = useState(false);
   const [showLLMReminder, setShowLLMReminder] = useState(false);
+  const [depsReady, setDepsReady] = useState(false);
 
   const { refetch } = useMediaList()
   const { data: segments = [], refetch: refetchSegments } = useSubtitleSegments(currentMedia?.id || null)
@@ -798,6 +800,9 @@ function App() {
           setTimeout(() => setIsLLMSettingsOpen(true), 300);
         }}
       />
+
+      {/* Dependency Setup Modal - shows on first run if deps are missing */}
+      <DepsSetup onComplete={() => setDepsReady(true)} />
     </div>
   )
 }

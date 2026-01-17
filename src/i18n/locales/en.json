@@ -132,5 +132,17 @@
     "syncFailed": "Sync Failed: {{error}}",
     "videoError": "Video Error: {{error}}",
     "loggedIn": "Logged in successfully!"
+  },
+  "deps": {
+    "title": "First-Time Setup",
+    "subtitle": "Some components need to be installed for full functionality",
+    "ready": "Ready",
+    "missing": "Missing",
+    "downloading": "Downloading...",
+    "extracting": "Extracting...",
+    "error": "Error",
+    "skip": "Skip for now",
+    "install": "Install Components",
+    "note": "Components will be stored in app data folder (~100MB)"
   }
 }
