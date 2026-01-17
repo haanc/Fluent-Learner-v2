@@ -423,6 +423,9 @@ def translate_segments(
 ):
     """
     Translate specified segments with multi-layer caching.
+
+    Note: Each segment stores only one translation at a time.
+    If the target language changes, existing translations will be overwritten.
     """
     segments = session.exec(
         select(SubtitleSegment).where(
@@ -434,49 +437,40 @@ def translate_segments(
     if not segments:
         raise HTTPException(status_code=404, detail="No segments found")
 
-    # Layer 1: Database cache
+    # Use memory cache to check if translation language matches
+    cache = get_translation_cache()
     results = []
     segments_needing_translation = []
 
     for seg in segments:
-        if seg.translation:
-            results.append({"id": str(seg.id), "translation": seg.translation})
+        # Check memory cache first - it tracks language correctly
+        cached = cache.get(seg.text, req.target_language)
+        if cached:
+            # Update segment with cached translation
+            if seg.translation != cached:
+                seg.translation = cached
+                session.add(seg)
+            results.append({"id": str(seg.id), "translation": cached})
         else:
+            # Need to translate this segment
             segments_needing_translation.append(seg)
 
     if not segments_needing_translation:
-        print(f"Cache hit: All {len(segments)} segments already translated")
-        return results
-
-    # Layer 2: Memory cache
-    cache = get_translation_cache()
-    texts_to_translate = []
-    segment_index_map = {}
-
-    for seg in segments_needing_translation:
-        cached = cache.get(seg.text, req.target_language)
-        if cached:
-            seg.translation = cached
-            session.add(seg)
-            results.append({"id": str(seg.id), "translation": cached})
-        else:
-            batch_idx = len(texts_to_translate)
-            texts_to_translate.append(seg.text)
-            segment_index_map[batch_idx] = seg
-
-    if not texts_to_translate:
         session.commit()
-        print(f"Memory cache hit: {len(segments_needing_translation)} segments")
+        print(f"Cache hit: All {len(segments)} segments found in cache")
         return results
 
-    # Layer 3: AI API
-    print(f"Translating {len(texts_to_translate)} segments")
+    # Translate via AI API
+    texts_to_translate = [seg.text for seg in segments_needing_translation]
+    segment_map = {i: seg for i, seg in enumerate(segments_needing_translation)}
+
+    print(f"Translating {len(texts_to_translate)} segments to {req.target_language}")
 
     try:
         translations = ai_service.translate_batch(texts_to_translate, req.target_language)
 
         for batch_idx, translation in translations.items():
-            seg = segment_index_map.get(batch_idx)
+            seg = segment_map.get(batch_idx)
             if seg and translation:
                 seg.translation = translation
                 session.add(seg)

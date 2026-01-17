@@ -8,7 +8,6 @@ import {
   checkDependencies,
   getMissingDependencies,
   downloadMissingDependencies,
-  getEnhancedEnv,
   getDepsDir,
   DownloadProgress,
 } from './deps-manager'
@@ -170,51 +169,75 @@ function startPythonBackend() {
   const pythonPath = path.join(backendDir, 'python', 'python.exe')
   const scriptPath = path.join(backendDir, 'main.py')
 
+  console.log('Starting Python backend...')
+  console.log('  Python:', pythonPath)
+  console.log('  Script:', scriptPath)
+  console.log('  Backend Dir:', backendDir)
+
+  if (!fs.existsSync(pythonPath)) {
+    console.error('FATAL: Python executable not found:', pythonPath)
+    console.error('Available files in backend-dist:', fs.existsSync(backendDir) ? fs.readdirSync(backendDir) : 'DIR NOT FOUND')
+    return
+  }
+
+  if (!fs.existsSync(scriptPath)) {
+    console.error('FATAL: Backend script not found:', scriptPath)
+    return
+  }
+
   // Set environment variables for the backend
-  // Use getEnhancedEnv to include deps directory (FFmpeg, yt-dlp) in PATH
+  // Include deps directory (FFmpeg, yt-dlp) in PATH if available
+  let enhancedPath = process.env.PATH || ''
+  try {
+    const depsDir = getDepsDir()
+    if (fs.existsSync(depsDir) && !enhancedPath.includes(depsDir)) {
+      enhancedPath = `${depsDir}${path.delimiter}${enhancedPath}`
+      console.log('  Deps Dir:', depsDir)
+    }
+  } catch (e) {
+    console.warn('Could not get deps dir:', e)
+  }
+
   const backendEnv = {
-    ...getEnhancedEnv(),
+    ...process.env,
+    PATH: enhancedPath,
     // Use app's userData directory for database and models
     LINGUAMASTER_DATA_DIR: app.getPath('userData'),
     WHISPER_MODELS_DIR: path.join(app.getPath('userData'), 'whisper-models'),
     DATABASE_PATH: path.join(app.getPath('userData'), 'learning.db'),
   }
 
-  console.log('Starting Python backend...')
-  console.log('  Python:', pythonPath)
-  console.log('  Script:', scriptPath)
   console.log('  Data Dir:', backendEnv.LINGUAMASTER_DATA_DIR)
 
-  if (!fs.existsSync(pythonPath)) {
-    console.error('Python executable not found:', pythonPath)
-    return
+  try {
+    pyProcess = spawn(pythonPath, [scriptPath], {
+      env: backendEnv,
+      cwd: backendDir,
+    })
+
+    pyProcess.stdout?.on('data', (data) => {
+      console.log(`Python: ${data}`)
+    })
+
+    pyProcess.stderr?.on('data', (data) => {
+      console.error(`Python Error: ${data}`)
+    })
+
+    pyProcess.on('close', (code) => {
+      console.log(`Python process exited with code ${code}`)
+      if (code !== 0 && code !== null) {
+        console.error('Backend crashed! Exit code:', code)
+      }
+    })
+
+    pyProcess.on('error', (err) => {
+      console.error('Failed to start Python backend:', err)
+    })
+
+    console.log('Python backend spawn initiated, PID:', pyProcess.pid)
+  } catch (err) {
+    console.error('Exception spawning Python backend:', err)
   }
-
-  if (!fs.existsSync(scriptPath)) {
-    console.error('Backend script not found:', scriptPath)
-    return
-  }
-
-  pyProcess = spawn(pythonPath, [scriptPath], {
-    env: backendEnv,
-    cwd: backendDir,
-  })
-
-  pyProcess.stdout?.on('data', (data) => {
-    console.log(`Python: ${data}`)
-  })
-
-  pyProcess.stderr?.on('data', (data) => {
-    console.error(`Python Error: ${data}`)
-  })
-
-  pyProcess.on('close', (code) => {
-    console.log(`Python process exited with code ${code}`)
-  })
-
-  pyProcess.on('error', (err) => {
-    console.error('Failed to start Python backend:', err)
-  })
 }
 
 function createWindow() {

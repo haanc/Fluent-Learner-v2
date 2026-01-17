@@ -198,8 +198,8 @@ function App() {
             needsTranslation.map(s => s.id),
             targetLanguage
           );
-          // Refetch segments to get translations
-          refetchSegments();
+          // Refetch segments to get translations - await to ensure data is refreshed
+          await refetchSegments();
           setMessage(t('status.translationComplete'));
         } catch (error: any) {
           console.error('Translation error:', error);
@@ -226,7 +226,8 @@ function App() {
           segments.map(s => s.id),
           lang
         );
-        refetchSegments();
+        // Await refetch to ensure UI updates with new translations
+        await refetchSegments();
         setMessage(t('status.translationComplete'));
       } catch (error: any) {
         console.error('Translation error:', error);
