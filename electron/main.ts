@@ -4,6 +4,14 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { Readable } from 'node:stream'
 import { spawn, ChildProcess } from 'node:child_process'
+import {
+  checkDependencies,
+  getMissingDependencies,
+  downloadMissingDependencies,
+  getEnhancedEnv,
+  getDepsDir,
+  DownloadProgress,
+} from './deps-manager'
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -122,6 +130,27 @@ function handleIpc() {
   ipcMain.handle('window-close', () => {
     win?.close()
   })
+
+  // Dependency management handlers
+  ipcMain.handle('check-dependencies', () => {
+    return checkDependencies()
+  })
+
+  ipcMain.handle('get-missing-dependencies', () => {
+    return getMissingDependencies()
+  })
+
+  ipcMain.handle('download-dependencies', async () => {
+    try {
+      await downloadMissingDependencies((progress: DownloadProgress) => {
+        // Send progress to renderer
+        win?.webContents.send('dependency-download-progress', progress)
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
 }
 
 function startPythonBackend() {
@@ -142,8 +171,9 @@ function startPythonBackend() {
   const scriptPath = path.join(backendDir, 'main.py')
 
   // Set environment variables for the backend
+  // Use getEnhancedEnv to include deps directory (FFmpeg, yt-dlp) in PATH
   const backendEnv = {
-    ...process.env,
+    ...getEnhancedEnv(),
     // Use app's userData directory for database and models
     LINGUAMASTER_DATA_DIR: app.getPath('userData'),
     WHISPER_MODELS_DIR: path.join(app.getPath('userData'), 'whisper-models'),
