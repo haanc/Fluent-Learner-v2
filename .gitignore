@@ -95,3 +95,6 @@ release/
 
 # Documentation - personal use only
 docs/
+
+# Claude Code skills - not part of project
+skills/
