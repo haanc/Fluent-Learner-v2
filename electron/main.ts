@@ -165,7 +165,7 @@ function sendBackendStatus() {
   }
 }
 
-async function waitForBackendReady(maxWaitMs: number = 30000): Promise<boolean> {
+async function waitForBackendReady(maxWaitMs: number = 60000): Promise<boolean> {
   const startTime = Date.now()
   const checkInterval = 500 // Check every 500ms
 
@@ -317,13 +317,13 @@ function startPythonBackend() {
     console.log('Python backend spawn initiated, PID:', pyProcess.pid)
 
     // Also check via HTTP health endpoint as a backup
-    waitForBackendReady(30000).then(ready => {
+    waitForBackendReady(60000).then(ready => {
       if (ready && backendStatus === 'starting') {
         backendStatus = 'ready'
         sendBackendStatus()
       } else if (!ready && backendStatus === 'starting') {
         backendStatus = 'error'
-        backendError = 'Backend failed to respond within 30 seconds'
+        backendError = 'Backend failed to respond within 60 seconds'
         sendBackendStatus()
       }
     })
