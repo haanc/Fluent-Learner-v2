@@ -1,8 +1,5 @@
 /// <reference types="vite/client" />
 
-// App version injected by Vite
-declare const __APP_VERSION__: string
-
 // Electron IPC Renderer interface
 interface IpcRenderer {
   on(channel: string, listener: (event: any, ...args: any[]) => void): this
@@ -12,6 +9,9 @@ interface IpcRenderer {
 }
 
 declare global {
+  // App version injected by Vite
+  const __APP_VERSION__: string
+
   interface Window {
     ipcRenderer: IpcRenderer
   }
