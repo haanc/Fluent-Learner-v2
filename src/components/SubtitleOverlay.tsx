@@ -42,23 +42,40 @@ const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ text, translation }) 
     const [isResizing, setIsResizing] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [fullscreenElement, setFullscreenElement] = useState<Element | null>(null);
-    const [containerSize, setContainerSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Update container size on mount and resize
+    // Update container size using ResizeObserver for accurate sizing
     useEffect(() => {
         const updateContainerSize = () => {
             const parent = containerRef.current?.parentElement;
-            if (parent) {
+            if (parent && parent.clientWidth > 0 && parent.clientHeight > 0) {
                 setContainerSize({ width: parent.clientWidth, height: parent.clientHeight });
-            } else {
-                setContainerSize({ width: window.innerWidth, height: window.innerHeight });
             }
         };
 
+        // Initial update with a small delay to ensure parent is rendered
         updateContainerSize();
+        const timeoutId = setTimeout(updateContainerSize, 100);
+
+        // Use ResizeObserver for accurate container size tracking
+        const resizeObserver = new ResizeObserver(() => {
+            updateContainerSize();
+        });
+
+        const parent = containerRef.current?.parentElement;
+        if (parent) {
+            resizeObserver.observe(parent);
+        }
+
+        // Also listen to window resize as fallback
         window.addEventListener('resize', updateContainerSize);
-        return () => window.removeEventListener('resize', updateContainerSize);
+
+        return () => {
+            clearTimeout(timeoutId);
+            resizeObserver.disconnect();
+            window.removeEventListener('resize', updateContainerSize);
+        };
     }, []);
 
     // Listen for fullscreen changes (including vendor-prefixed events)
@@ -143,7 +160,12 @@ const SubtitleOverlay: React.FC<SubtitleOverlayProps> = ({ text, translation }) 
         saveSettings(newSettings);
     }, [settings, saveSettings, containerSize]);
 
+    // Don't render if no text or container size not yet determined
     if (!text) return null;
+    if (containerSize.width === 0 || containerSize.height === 0) {
+        // Return the container ref so ResizeObserver can attach
+        return <div ref={containerRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />;
+    }
 
     // Calculate pixel values from percentage settings
     const pixelWidth = containerSize.width * settings.widthPercent;
