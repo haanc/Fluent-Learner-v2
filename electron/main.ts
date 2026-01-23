@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import { Readable } from 'node:stream'
-import { spawn, ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, ChildProcess } from 'node:child_process'
 import {
   checkDependencies,
   getMissingDependencies,
@@ -33,6 +33,65 @@ let win: BrowserWindow | null
 let pyProcess: ChildProcess | null = null
 let backendStatus: 'not_started' | 'starting' | 'ready' | 'error' = 'not_started'
 let backendError: string | null = null
+let isBackendKilled = false // Prevent multiple kill attempts
+let isQuitting = false // Flag to allow window close after cleanup
+
+// Kill the Python backend process - SYNCHRONOUS, blocks until complete
+function killBackend(): void {
+  if (isBackendKilled) {
+    return
+  }
+  isBackendKilled = true
+
+  if (process.platform !== 'win32') {
+    if (pyProcess) {
+      pyProcess.kill('SIGKILL')
+    }
+    return
+  }
+
+  // Method 1: Kill by PID if available
+  if (pyProcess && pyProcess.pid) {
+    try {
+      spawnSync('taskkill', ['/PID', String(pyProcess.pid), '/T', '/F'], {
+        timeout: 5000,
+        windowsHide: true
+      })
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  // Method 2: Kill by port 8000 (backup)
+  try {
+    const netstatResult = spawnSync('cmd.exe', ['/c', 'netstat -ano | findstr :8000 | findstr LISTENING'], {
+      encoding: 'utf8',
+      timeout: 5000,
+      windowsHide: true,
+      shell: true
+    })
+
+    if (netstatResult.stdout) {
+      const lines = netstatResult.stdout.split('\n')
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/)
+        const pid = parts[parts.length - 1]
+        if (/^\d+$/.test(pid) && pid !== '0') {
+          try {
+            spawnSync('taskkill', ['/PID', pid, '/F'], {
+              timeout: 5000,
+              windowsHide: true
+            })
+          } catch {
+            // Ignore errors
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
 
 // Register local protocol for videos
 function registerLocalProtocol() {
@@ -384,6 +443,28 @@ function createWindow() {
     },
   })
 
+  // Kill backend when window is closing (handles Alt+F4, system close, etc.)
+  win.on('close', (event) => {
+    // If we're already in quitting process, allow the close
+    if (isQuitting) {
+      return
+    }
+
+    // Prevent the window from closing immediately
+    event.preventDefault()
+
+    // Set quitting flag
+    isQuitting = true
+
+    // Kill the backend synchronously
+    killBackend()
+
+    // Now actually close the window
+    if (win) {
+      win.destroy()
+    }
+  })
+
   // Disable Chromium's autofill features
   win.webContents.session.setSpellCheckerEnabled(false)
 
@@ -424,22 +505,8 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
-  if (pyProcess && pyProcess.pid) {
-    console.log('Terminating Python backend (PID:', pyProcess.pid, ')...')
-    // On Windows, kill() may not work with shell: true
-    // Use taskkill to forcefully terminate the process tree
-    if (process.platform === 'win32') {
-      try {
-        require('child_process').execSync(`taskkill /PID ${pyProcess.pid} /T /F`, { stdio: 'ignore' })
-        console.log('Python backend terminated via taskkill')
-      } catch (e) {
-        console.warn('taskkill failed, trying kill():', e)
-        pyProcess.kill('SIGKILL')
-      }
-    } else {
-      pyProcess.kill('SIGKILL')
-    }
-  }
+  // Backup cleanup in case other handlers didn't run
+  killBackend()
 })
 
 app.on('activate', () => {
