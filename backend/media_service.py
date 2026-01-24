@@ -1,7 +1,34 @@
 import yt_dlp
 import os
+import re
 import subprocess
 from typing import Optional, Callable
+from urllib.parse import urlparse
+
+
+# Allowed video platforms for security
+ALLOWED_VIDEO_HOSTS = {
+    "youtube.com", "www.youtube.com", "youtu.be",
+    "bilibili.com", "www.bilibili.com", "b23.tv",
+    "vimeo.com", "www.vimeo.com",
+    "dailymotion.com", "www.dailymotion.com",
+}
+
+
+def validate_video_url(url: str) -> bool:
+    """
+    Validate that URL is from an allowed video platform.
+    Prevents SSRF attacks via arbitrary URL fetching.
+    """
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = parsed.hostname or ""
+        # Check if host matches allowed platforms
+        return any(host.endswith(allowed) for allowed in ALLOWED_VIDEO_HOSTS)
+    except Exception:
+        return False
 
 class MediaService:
     def __init__(self, download_dir="cache"):
@@ -120,7 +147,11 @@ class MediaService:
             url = f"https://www.youtube.com/watch?v={video_id_or_url}"
         else:
             url = video_id_or_url
-            
+
+        # Security: Validate URL is from allowed video platforms
+        if not validate_video_url(url):
+            raise ValueError(f"URL not from allowed video platform: {url}")
+
         print(f"DEBUG: Fetching stream URL for {url} via yt-dlp...")
         
         # We want "best video" stream that is NOT dash (if possible) or just best generic.

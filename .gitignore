@@ -92,6 +92,12 @@ secrets.json
 *~
 backend-dist/
 release/
+release-new/
+
+# Claude Code working files
+findings.md
+progress.md
+task_plan.md
 
 # Documentation - personal use only
 docs/

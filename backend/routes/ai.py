@@ -7,8 +7,10 @@ Also provides local Whisper model management endpoints.
 from threading import Lock
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ai_service import ai_service
 from ai.config import get_config
@@ -16,6 +18,9 @@ from ai.dependencies import get_request_llm_provider
 from ai.providers.llm import LLMProvider
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# Get limiter from app state (will be set when app starts)
+limiter = Limiter(key_func=get_remote_address)
 
 
 # --- Request Models ---
@@ -46,7 +51,8 @@ class TestConnectionRequest(BaseModel):
 # --- Endpoints ---
 
 @router.post("/lookup-word")
-def lookup_word(req: LookupRequest, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
+@limiter.limit("30/minute")  # 30 lookups per minute
+def lookup_word(request: Request, req: LookupRequest, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
     """
     Look up a word's definition, pronunciation, and translation in context.
 
@@ -54,6 +60,7 @@ def lookup_word(req: LookupRequest, llm_provider: LLMProvider = Depends(get_requ
     and uses fewer tokens by extracting the word translation from context.
 
     Accepts X-LLM-Config header for user-configured LLM.
+    Rate limited to 30 requests per minute.
     """
     return ai_service.lookup_word_with_provider(
         req.word,
@@ -65,22 +72,26 @@ def lookup_word(req: LookupRequest, llm_provider: LLMProvider = Depends(get_requ
 
 
 @router.post("/explain")
-def explain_context(req: ExplainRequest, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
+@limiter.limit("20/minute")  # 20 explanations per minute
+def explain_context(request: Request, req: ExplainRequest, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
     """
     Explain grammar and cultural context of a text passage.
 
     Accepts X-LLM-Config header for user-configured LLM.
+    Rate limited to 20 requests per minute.
     """
     return ai_service.explain_context_with_provider(req.text, req.target_language, llm_provider)
 
 
 @router.post("/chat")
-def chat_tutor(req: ChatRequest, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
+@limiter.limit("60/minute")  # 60 chat messages per minute
+def chat_tutor(request: Request, req: ChatRequest, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
     """
     Chat with the AI language tutor.
     The tutor only answers questions related to the provided context text.
 
     Accepts X-LLM-Config header for user-configured LLM.
+    Rate limited to 60 requests per minute.
     """
     return ai_service.chat_with_tutor_with_provider(
         req.messages, req.context, req.target_language, llm_provider
@@ -88,7 +99,8 @@ def chat_tutor(req: ChatRequest, llm_provider: LLMProvider = Depends(get_request
 
 
 @router.post("/test-connection")
-def test_llm_connection(llm_provider: LLMProvider = Depends(get_request_llm_provider)):
+@limiter.limit("10/minute")  # 10 connection tests per minute
+def test_llm_connection(request: Request, llm_provider: LLMProvider = Depends(get_request_llm_provider)):
     """
     Test connection to the configured LLM provider.
 
@@ -180,7 +192,8 @@ def get_whisper_status():
 
 
 @router.post("/whisper/download-model")
-def download_whisper_model(req: ModelDownloadRequest, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")  # 5 model downloads per minute
+def download_whisper_model(request: Request, req: ModelDownloadRequest, background_tasks: BackgroundTasks):
     """
     Start downloading a Whisper model in the background.
     Use GET /ai/whisper/download-progress/{model_name} to check progress.
@@ -281,7 +294,8 @@ def get_download_progress(model_name: str):
 
 
 @router.delete("/whisper/model/{model_name}")
-def delete_whisper_model(model_name: str):
+@limiter.limit("10/minute")  # 10 model deletions per minute
+def delete_whisper_model(request: Request, model_name: str):
     """Delete a downloaded Whisper model to free up disk space."""
     try:
         from ai.providers.local_whisper import ModelDownloadManager
