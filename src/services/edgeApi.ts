@@ -14,15 +14,8 @@ const EDGE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
  * Get current auth token - uses getSessionWithTimeout to avoid SDK hanging
  */
 async function getAuthToken(): Promise<string | null> {
-  // Use our timeout-protected version
-  const { session, error } = await getSessionWithTimeout(3000);
-
-  console.log('getAuthToken debug:', {
-    error: error?.message,
-    hasSession: !!session,
-    tokenLength: session?.access_token?.length,
-    expiresAt: session?.expires_at,
-  });
+  // Use our timeout-protected version (5 second timeout)
+  const { session, error } = await getSessionWithTimeout(5000);
 
   if (error) {
     console.error('Failed to get session:', error);
@@ -30,7 +23,6 @@ async function getAuthToken(): Promise<string | null> {
   }
 
   if (!session) {
-    console.log('No active session');
     return null;
   }
 

@@ -72,13 +72,7 @@ export function UserProvider({ children }: UserProviderProps) {
   const fetchUserProfile = useCallback(async () => {
     try {
       // Use getSessionWithTimeout instead of getSession - handles SDK hang issue
-      const { session, error: sessionError } = await getSessionWithTimeout(3000);
-
-      console.log('UserContext fetchUserProfile:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        error: sessionError?.message
-      });
+      const { session, error: sessionError } = await getSessionWithTimeout(5000);
 
       if (!session?.user) {
         setUser(GUEST_USER);

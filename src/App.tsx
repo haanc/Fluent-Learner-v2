@@ -402,13 +402,7 @@ function App() {
   useEffect(() => {
     // Check initial auth state using getSessionWithTimeout (handles SDK hang issue)
     const initAuth = async () => {
-      const { session, error } = await getSessionWithTimeout(3000);
-
-      console.log('Auth init:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        error: error?.message
-      });
+      const { session, error } = await getSessionWithTimeout(5000);
 
       if (session?.user) {
         setUser(session.user);

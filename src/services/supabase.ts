@@ -51,18 +51,17 @@ let cachedSessionExpiry: number = 0;
  * This version completely bypasses the SDK when it hangs and uses a refresh lock
  * to prevent concurrent refresh attempts (refresh tokens are one-time use).
  */
-export const getSessionWithTimeout = async (timeoutMs = 3000): Promise<{ session: Session | null; error: Error | null }> => {
+export const getSessionWithTimeout = async (timeoutMs = 5000): Promise<{ session: Session | null; error: Error | null }> => {
     const now = Date.now();
     const nowSec = Math.floor(now / 1000);
 
-    // Check cached session first (valid for 30 seconds AND not expired)
+    // Check cached session first (valid for 60 seconds AND not expired)
     if (cachedSession && cachedSessionExpiry > now) {
-        // Also check if the actual token is not expired
-        if (cachedSession.expires_at && cachedSession.expires_at > nowSec + 60) {
+        // Also check if the actual token is not expired (with 2 minute buffer)
+        if (cachedSession.expires_at && cachedSession.expires_at > nowSec + 120) {
             return { session: cachedSession, error: null };
         }
         // Token is about to expire, clear cache and refresh
-        console.log('Cached session token expiring soon, refreshing...');
         cachedSession = null;
         cachedSessionExpiry = 0;
     }
@@ -103,15 +102,17 @@ export const getSessionWithTimeout = async (timeoutMs = 3000): Promise<{ session
 
         if (session) {
             cachedSession = session;
-            cachedSessionExpiry = now + 30000; // Cache for 30 seconds
+            cachedSessionExpiry = now + 60000; // Cache for 60 seconds
         }
         return { session, error: result.error };
     } catch (timeoutError) {
-        console.warn('getSession timed out, trying manual token refresh...');
+        // Only log on first timeout, not repeatedly
+        if (!cachedSession) {
+            console.warn('getSession timed out, trying manual token refresh...');
+        }
 
         // Use lock to prevent concurrent refresh attempts
         if (refreshPromise) {
-            console.log('Waiting for existing refresh...');
             const session = await refreshPromise;
             return { session, error: null };
         }
@@ -177,9 +178,9 @@ export const getSessionWithTimeout = async (timeoutMs = 3000): Promise<{ session
                         user: newTokens.user
                     };
 
-                    // Cache the new session
+                    // Cache the new session (60 seconds)
                     cachedSession = session;
-                    cachedSessionExpiry = Date.now() + 30000;
+                    cachedSessionExpiry = Date.now() + 60000;
 
                     // Try to update SDK state in background (don't await)
                     supabase.auth.setSession({
