@@ -1,7 +1,7 @@
 # 项目每日进展总结
 
 > 📅 日期：2026-01-20
-> 🕐 记录时间：20:55 (UTC+8)
+> 🕐 记录时间：21:30 (UTC+8)
 > 📁 项目：fluent-learner-v2 (LinguaMaster)
 
 ---
@@ -13,8 +13,36 @@
 | 新增功能 | 1 |
 | 代码优化 | 2 |
 | 架构调整 | 1 |
-| Bug 修复 | 2 |
-| 文档更新 | 3 |
+| Bug 修复 | 3 |
+| 文档更新 | 4 |
+| 版本发布 | 1 |
+
+---
+
+## 🎉 版本发布
+
+### v0.0.8 正式发布
+
+| 项目 | 内容 |
+|------|------|
+| **发布时间** | 21:20 |
+| **安装包大小** | 175 MB |
+| **Release 链接** | [GitHub Release v0.0.8](https://github.com/haanc/LinguaMaster/releases/tag/v0.0.8) |
+
+**发布内容：**
+- 合并 `refactor/backend-cleanup` 分支到 `main`
+- 构建 Windows 安装包 `LinguaMaster Setup 0.0.8.exe`
+- 创建 GitHub Release 并上传安装包
+- 更新中英文 README 文档
+
+**Git 提交记录：**
+```
+c5166b3 docs: update README for v0.0.8 release
+d44c20a fix: move __APP_VERSION__ declaration to global scope
+a7229a6 chore: release v0.0.8
+1f86ccf feat: 翻译解析修复 + 版本号显示 + 项目文档
+b216067 refactor: 后端代码清理 + Bug修复
+```
 
 ---
 
@@ -35,7 +63,7 @@
 - 技术栈：Vite + React + TypeScript
 - 关键实现：
   1. 在 `vite.config.ts` 中使用 `define` 配置注入 `__APP_VERSION__` 全局变量
-  2. 在 `src/vite-env.d.ts` 中添加 TypeScript 类型声明
+  2. 在 `src/vite-env.d.ts` 中添加 TypeScript 类型声明（放入 `declare global` 块）
   3. 在 `SettingsView.tsx` 组件中添加 footer 区域显示版本号
   4. 在 `SettingsView.css` 中添加样式
 
@@ -110,14 +138,12 @@
 **调整内容：**
 - 创建 `refactor/backend-cleanup` 分支用于后端代码清理
 - 采用分支隔离策略，确保主分支稳定性
+- ✅ 已合并到 `main` 分支并发布
 
 **调整原因：**
 - 遵循 Git 最佳实践
 - 隔离重构工作，避免影响生产代码
 - 方便代码审查和回滚
-
-**影响范围：**
-- 仅影响开发流程，不影响生产环境
 
 ---
 
@@ -155,6 +181,20 @@
 **修复方案：**
 更新 `backend/routes/ai.py` 中的文档注释，移除过时的"未实现"说明，正确描述端点已支持 `X-LLM-Config` header。
 
+### 3. TypeScript 编译错误
+
+| 项目 | 内容 |
+|------|------|
+| **修复时间** | 21:15 |
+| **严重程度** | 中 |
+| **影响范围** | 构建流程 |
+
+**问题概述：**
+`__APP_VERSION__` 全局变量声明在模块文件中无效，导致 TypeScript 编译失败。
+
+**修复方案：**
+将 `declare const __APP_VERSION__: string` 移入 `declare global {}` 块内，确保在模块上下文中也能正确声明全局变量。
+
 ---
 
 ## 📝 文档更新
@@ -187,13 +227,25 @@
 
 更新项目路线图文档，将 Phase 3 标记为完成，修正 Chat endpoint 问题描述。
 
+### 4. README 更新
+
+| 项目 | 内容 |
+|------|------|
+| **时间** | 21:25 |
+
+更新中英文 README 文档，添加 v0.0.8 更新内容，将 v0.0.7 内容折叠到历史版本。
+
+**文件：**
+- `README.md`
+- `README.zh-CN.md`
+
 ---
 
 ## 📋 后续待办
 
 ### 高优先级
-- [ ] 合并 `refactor/backend-cleanup` 分支到主分支
-- [ ] 发布 v0.0.8 版本
+- [x] ~~合并 `refactor/backend-cleanup` 分支到主分支~~ ✅
+- [x] ~~发布 v0.0.8 版本~~ ✅
 
 ### 中优先级
 - [ ] 继续项目路线图中的其他开发方向
@@ -209,11 +261,13 @@
 
 | 指标 | 数值 |
 |------|------|
-| 总工作时长 | 约 3.5 小时 |
-| 代码文件变更 | 12 个 |
+| 总工作时长 | 约 4.5 小时 |
+| 代码文件变更 | 15 个 |
 | 删除的死代码 | ~200 行 |
 | 新增功能代码 | ~50 行 |
-| 文档创建 | 3 个 |
+| 文档创建/更新 | 6 个 |
+| Git 提交 | 5 个 |
+| 版本发布 | v0.0.8 |
 
 ---
 
@@ -227,6 +281,14 @@
 | #S555 | 代码清理和优化，删除死代码，修复翻译问题 |
 | #S556 | 开发环境探索 |
 | #S565-S574 | 翻译 bug 调查、修复、文档生成、版本显示功能 |
+| #S575 | v0.0.8 发布、GitHub Release 创建、README 更新 |
+
+---
+
+## 🔗 相关链接
+
+- **GitHub Release:** https://github.com/haanc/LinguaMaster/releases/tag/v0.0.8
+- **安装包:** `LinguaMaster Setup 0.0.8.exe` (175 MB)
 
 ---
 
